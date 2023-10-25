@@ -1,0 +1,7 @@
+name = "XYPicker"
+uuid = "8672ba75-6745-4d2b-8eca-02ca7407da7f"
+authors = ["Yu-Chang YANG <yang.yc.allium@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
