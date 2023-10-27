@@ -5,31 +5,59 @@ module XYPicker
 using LinearAlgebra
 using PyPlot
 
-export getpoints, clearpoints, clearplots, clearboth
+export getpoints, clearall
 export xypicker
 export Transformer, transformer
 
 const LEFT = 1
 const RIGHT = 3
 
-points = Tuple{Int,Float64,Float64}[]
+struct Record
+	button::Int
+	xdata::Float64
+	ydata::Float64
+end
 
-function getpoints(; mode=:allright)
-	if mode == :allright
-		return reduce(vcat, [p[2] p[3]] for p = points if p[1] == RIGHT)
-	elseif mode == :allleft
-		return reduce(vcat, [p[2] p[3]] for p = points if p[1] == LEFT)
-	elseif mode == :all
-		return reduce(vcat, [p[2] p[3]] for p = points)
-	elseif mode == :newright
-		x = findlast
+isleft(r::Record) = r.button == LEFT
+isright(r::Record) = r.button == RIGHT
+sameas(r::Record) = isleft(r) ? isleft : isright
+xyrow(r::Record) = [r.xdata r.ydata]
+
+records = Record[]
+
+function lastblock(func, records)
+	i = findlast(!func, records)
+	if isnothing(i)
+		return records
 	else
-		return points
+		return records[i+1:end]
 	end
 end
 
-function clearpoints()
-	global points = Tuple{Int,Float64,Float64}[]
+function filterrecords(; mode=:new)
+	if mode == :all
+		return records
+	elseif mode == :allright
+		return filter(isright, records)
+	elseif mode == :allleft
+		return filter(isleft, records)
+	elseif mode == :new
+		isempty(records) && return records
+		return lastblock(sameas(records[end]), records)
+	elseif mode == :newright
+		return lastblock(isright, records)
+	elseif mode == :newleft
+		return lastblock(isleft, records)
+	else
+		error("Unrecognized mode $mode!")
+	end
+end
+
+getpoints(; mode=:new) = 
+	reduce(vcat, xyrow.(filterrecords(; mode=mode)); init=zeros(Float64,0,2))
+
+function clearrecords()
+	empty!(records)
 	return nothing
 end
 
@@ -39,26 +67,27 @@ function clearplots()
 	for p = plots
 		p.remove()
 	end
-	global plots = []
+	empty!(plots)
 	return nothing
 end
 
-function clearboth()
-	clearpoints()
+function clearall()
+	clearrecords()
 	clearplots()
 end
 
 function click(event)
-	type = event.button
+	button = event.button
 	x = event.xdata
 	y = event.ydata
-	push!(points, (type, x, y))
-	if type == LEFT
+	record = Record(button, x, y)
+	push!(records, record)
+	if isleft(record)
 		append!(plots, plot(x, y, "r."))
-	elseif type == RIGHT
+	elseif isright(record)
 		append!(plots, plot(x, y, "b."))
 	else
-		error("Unrecognized button type {type}!")
+		error("Unrecognized button type $button!")
 	end
 end
 
